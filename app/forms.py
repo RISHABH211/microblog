@@ -5,11 +5,13 @@ from app.models import User
 
 
 class RegistrationForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired()])
-    email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    password2 = PasswordField('Repeat Password', validators=[DataRequired(), EqualTo('password')])
-    submit = SubmitField('Register')
+    username = StringField("Username", validators=[DataRequired()])
+    email = StringField("Email", validators=[DataRequired(), Email()])
+    password = PasswordField("Password", validators=[DataRequired()])
+    password2 = PasswordField(
+        "Repeat Password", validators=[DataRequired(), EqualTo("password")]
+    )
+    submit = SubmitField("Register")
 
     def validate_username(self, username):
         user = User.query.filter_by(username=username.data).first()
@@ -22,8 +24,14 @@ class RegistrationForm(FlaskForm):
             raise ValidationError("Please use a different email address")
 
 
-class LoginForm(FlaskForm):             # LoginForm taken from flask_wtf has its own template formatting
-    username1 = StringField('username', validators=[DataRequired()])  # field should have relevant entries
-    password1 = PasswordField('password', validators=[DataRequired()])  # field should have relevant entries
-    remember_me1 = BooleanField('remember_me')
-    submit1 = SubmitField('Sign In')
+class LoginForm(
+    FlaskForm
+):  # LoginForm taken from flask_wtf has its own template formatting
+    username1 = StringField(
+        "username", validators=[DataRequired()]
+    )  # field should have relevant entries
+    password1 = PasswordField(
+        "password", validators=[DataRequired()]
+    )  # field should have relevant entries
+    remember_me1 = BooleanField("remember_me")
+    submit1 = SubmitField("Sign In")
