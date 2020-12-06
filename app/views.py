@@ -3,7 +3,7 @@ from flask import render_template, flash, redirect, url_for, request
 from app.forms import (
     LoginForm,
     RegistrationForm,
-    EditProfileForm
+    EditProfileForm,
 )  # importing the login, registration form created in forms to access the details
 from app.models import (
     User,
@@ -76,28 +76,36 @@ def logout():  # function called at url
 
 @cat.route("/register", methods=["GET", "POST"])
 def register():
-    if current_user.is_authenticated:   # import from flask_login taking care of current user authentication
+    if (
+        current_user.is_authenticated
+    ):  # import from flask_login taking care of current user authentication
         return redirect(url_for("index"))
     form = RegistrationForm()
-    if form.validate_on_submit():   # validate on submit() is a method of class Flask_form, is true if all form validators are true
-        user = User(username=form.username.data, email=form.email.data)     # getting data from form User
-        user.set_password(form.password.data)   # setting password hash from password data from form
-        db.session.add(user)    # adding user to the session in db instance of SQLAlchemy
-        db.session.commit()     # committing to db database
+    if (
+        form.validate_on_submit()
+    ):  # validate on submit() is a method of class Flask_form, is true if all form validators are true
+        user = User(
+            username=form.username.data, email=form.email.data
+        )  # getting data from form User
+        user.set_password(
+            form.password.data
+        )  # setting password hash from password data from form
+        db.session.add(user)  # adding user to the session in db instance of SQLAlchemy
+        db.session.commit()  # committing to db database
         flash("Congratulations, you are now a registered user!")
         return redirect(url_for("login"))
     return render_template("register.html", title="Register", form=form)
 
 
-@cat.route('/user/<username>')
+@cat.route("/user/<username>")
 @login_required
 def istemal_krta(username):
     user_krta = User.query.filter_by(username=username).first_or_404()
     posts_krta = [
-        {'author': user_krta, 'body': 'Test post #1'},
-        {'author': user_krta, 'body': 'Test post #2'}
+        {"author": user_krta, "body": "Test post #1"},
+        {"author": user_krta, "body": "Test post #2"},
     ]
-    return render_template('user.html', user_krta1=user_krta, posts_krta1=posts_krta)
+    return render_template("user.html", user_krta1=user_krta, posts_krta1=posts_krta)
 
 
 @cat.before_request
@@ -107,17 +115,17 @@ def before_request():
         db.session.commit()
 
 
-@cat.route("/edit_profile", methods=['GET', 'POST'])
+@cat.route("/edit_profile", methods=["GET", "POST"])
 @login_required
 def edit_profile():
-    form = EditProfileForm()
+    form = EditProfileForm(current_user.username)
     if form.validate_on_submit():
         current_user.username = form.username.data
         current_user.about_me = form.about_me.data
         db.session.commit()
         flash("Your changes have been saved")
-        return redirect(url_for('edit_profile'))
-    elif request.method == 'GET':
+        return redirect(url_for("edit_profile"))
+    elif request.method == "GET":
         form.username.data = current_user.username
         form.about_me.data = current_user.about_me
-    return render_template('edit_profile.html', title='Edit Profile', form=form)
+    return render_template("edit_profile.html", title="Edit Profile", form=form)
