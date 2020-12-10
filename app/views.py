@@ -5,9 +5,11 @@ from app.forms import (
     RegistrationForm,
     EditProfileForm,
     EmptyForm,
+    PostForm
 )  # importing the login, registration form created in forms to access the details
 from app.models import (
     User,
+    Post
 )  # importing the user class from models(schema created to save data in it
 from flask_login import (
     current_user,
@@ -20,16 +22,27 @@ from app import db
 from datetime import datetime
 
 
-@cat.route("/")
-@cat.route("/index")
+@cat.route("/", methods=['GET', 'POST'])
+@cat.route("/index", methods=['GET', 'POST'])
 @login_required  # decorator defining the hello(index) function only be called if user is logged in
 def hello():
-    user = {"username": "Rishabh"}
-    posts = [
-        {"author": {"username": "Shekhar"}, "post": "what an exciting future"},
-        {"author": {"username": "Ankur"}, "post": "Long fight ahead"},
-    ]
-    return render_template("index.html", title="Den", user1=user, post1=posts)
+    form = PostForm()
+    if form.validate_on_submit():
+        post = Post(body=form.post.data, author=current_user)
+        db.session.add(post)
+        db.session.commit()
+        flash('Your post is now live!')
+        return redirect(url_for('hello'))
+    page = request.args.get('page', 1, type=int)
+    posts = current_user.followed_posts().paginate(
+        page, cat.config['POST_PER_PAGE'], False)
+    next_url = url_for('hello', page=posts.next_num) \
+        if posts.has_next else None
+    prev_url = url_for('hello', page=posts.prev_num) \
+        if posts.has_prev else None
+    return render_template('index.html', title='TOM n JERRY', form=form,
+                           post1=posts.items, next_url=next_url,
+                           prev_url=prev_url)
 
 
 @cat.route("/login", methods=["GET", "POST"])
@@ -102,12 +115,16 @@ def register():
 @login_required
 def istemal_krta(username):
     user_krta = User.query.filter_by(username=username).first_or_404()
-    posts_krta = [
-        {"author": user_krta, "body": "Test post #1"},
-        {"author": user_krta, "body": "Test post #2"},
-    ]
+    page = request.args.get('page', 1, type=int)
+    posts = user_krta.posts.order_by(Post.timestamp.desc()).paginate(
+        page, cat.config['POST_PER_PAGE'], False)
+    next_url = url_for('user', username=user_krta.username, page=posts.next_num) \
+        if posts.has_next else None
+    prev_url = url_for('user', username=user_krta.username, page=posts.prev_num) \
+        if posts.has_prev else None
     form = EmptyForm()
-    return render_template("user.html", user_krta1=user_krta, posts_krta1=posts_krta, form=form)
+    return render_template('user.html', user_krta1=user_krta, posts_krta1=posts.items,
+                           next_url=next_url, prev_url=prev_url, form=form)
 
 
 @cat.before_request
@@ -171,3 +188,16 @@ def unfollow(username):
         return redirect(url_for('istemal_krta', username=username))
     else:
         return redirect(url_for('hello'))
+
+
+@cat.route('/explore')
+@login_required
+def explore():
+    page = request.args.get('page', 1, type=int)
+    posts = Post.query.order_by(Post.timestamp.desc()).paginate(page, cat.config['POST_PER_PAGE'], False)
+    next_url = url_for('explore', page=posts.next_num) \
+        if posts.has_next else None
+    prev_url = url_for('explore', page=posts.prev_num) \
+        if posts.has_prev else None
+    return render_template("index.html", title='Explore', post1=posts.items,
+                           next_url=next_url, prev_url=prev_url)
