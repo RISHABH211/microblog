@@ -6,6 +6,9 @@ from flask_login import LoginManager
 import logging
 from logging.handlers import SMTPHandler, RotatingFileHandler
 import os
+from flask_mail import Mail
+from flask_bootstrap import Bootstrap
+
 
 cat: Flask = Flask(__name__)  # cat is the instance/object of Flask class
 cat.config.from_object(Config)  # cat is importing the configuration from config.py
@@ -19,11 +22,15 @@ login_instance = LoginManager(
 login_instance.login_view = (
     "login"  # Flask-Login needs to know what is the view function that handles logins
 )
+mail = Mail(cat)
+
 from app import (
     views,
     models,
     errors,
 )  # from app import views and models later after cat instance, as circular reference
+
+bootstrap = Bootstrap(cat)
 
 if (
     not cat.debug
@@ -45,14 +52,18 @@ if (
         )
         mail_handler.setLevel(logging.ERROR)
         cat.logger.addHandler(mail_handler)
-    if not os.path.exists('logs'):
-        os.mkdir('logs')
-    file_handler = RotatingFileHandler('logs/microblog.log', maxBytes=10240,
-                                       backupCount=10)
-    file_handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+    if not os.path.exists("logs"):
+        os.mkdir("logs")
+    file_handler = RotatingFileHandler(
+        "logs/microblog.log", maxBytes=10240, backupCount=10
+    )
+    file_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]"
+        )
+    )
     file_handler.setLevel(logging.INFO)
     cat.logger.addHandler(file_handler)
 
     cat.logger.setLevel(logging.INFO)
-    cat.logger.info('Microblog startup')
+    cat.logger.info("Microblog startup")

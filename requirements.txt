@@ -7,3 +7,6 @@ flask-login
 email-validator
 pre-commit
 black
+flask-mail
+pyjwt
+flask-bootstrap

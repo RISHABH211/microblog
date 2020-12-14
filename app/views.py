@@ -5,11 +5,13 @@ from app.forms import (
     RegistrationForm,
     EditProfileForm,
     EmptyForm,
-    PostForm
+    PostForm,
+    ResetPasswordRequestForm,
+    ResetPasswordForm,
 )  # importing the login, registration form created in forms to access the details
 from app.models import (
     User,
-    Post
+    Post,
 )  # importing the user class from models(schema created to save data in it
 from flask_login import (
     current_user,
@@ -20,10 +22,11 @@ from flask_login import (
 from werkzeug.urls import url_parse
 from app import db
 from datetime import datetime
+from app.email import send_password_reset_email
 
 
-@cat.route("/", methods=['GET', 'POST'])
-@cat.route("/index", methods=['GET', 'POST'])
+@cat.route("/", methods=["GET", "POST"])
+@cat.route("/index", methods=["GET", "POST"])
 @login_required  # decorator defining the hello(index) function only be called if user is logged in
 def hello():
     form = PostForm()
@@ -31,18 +34,22 @@ def hello():
         post = Post(body=form.post.data, author=current_user)
         db.session.add(post)
         db.session.commit()
-        flash('Your post is now live!')
-        return redirect(url_for('hello'))
-    page = request.args.get('page', 1, type=int)
+        flash("Your post is now live!")
+        return redirect(url_for("hello"))
+    page = request.args.get("page", 1, type=int)
     posts = current_user.followed_posts().paginate(
-        page, cat.config['POST_PER_PAGE'], False)
-    next_url = url_for('hello', page=posts.next_num) \
-        if posts.has_next else None
-    prev_url = url_for('hello', page=posts.prev_num) \
-        if posts.has_prev else None
-    return render_template('index.html', title='TOM n JERRY', form=form,
-                           post1=posts.items, next_url=next_url,
-                           prev_url=prev_url)
+        page, cat.config["POST_PER_PAGE"], False
+    )
+    next_url = url_for("hello", page=posts.next_num) if posts.has_next else None
+    prev_url = url_for("hello", page=posts.prev_num) if posts.has_prev else None
+    return render_template(
+        "index.html",
+        title="TOM n JERRY",
+        form=form,
+        post1=posts.items,
+        next_url=next_url,
+        prev_url=prev_url,
+    )
 
 
 @cat.route("/login", methods=["GET", "POST"])
@@ -115,16 +122,29 @@ def register():
 @login_required
 def istemal_krta(username):
     user_krta = User.query.filter_by(username=username).first_or_404()
-    page = request.args.get('page', 1, type=int)
+    page = request.args.get("page", 1, type=int)
     posts = user_krta.posts.order_by(Post.timestamp.desc()).paginate(
-        page, cat.config['POST_PER_PAGE'], False)
-    next_url = url_for('user', username=user_krta.username, page=posts.next_num) \
-        if posts.has_next else None
-    prev_url = url_for('user', username=user_krta.username, page=posts.prev_num) \
-        if posts.has_prev else None
+        page, cat.config["POST_PER_PAGE"], False
+    )
+    next_url = (
+        url_for("user", username=user_krta.username, page=posts.next_num)
+        if posts.has_next
+        else None
+    )
+    prev_url = (
+        url_for("user", username=user_krta.username, page=posts.prev_num)
+        if posts.has_prev
+        else None
+    )
     form = EmptyForm()
-    return render_template('user.html', user_krta1=user_krta, posts_krta1=posts.items,
-                           next_url=next_url, prev_url=prev_url, form=form)
+    return render_template(
+        "user.html",
+        user_krta1=user_krta,
+        posts_krta1=posts.items,
+        next_url=next_url,
+        prev_url=prev_url,
+        form=form,
+    )
 
 
 @cat.before_request
@@ -150,54 +170,91 @@ def edit_profile():
     return render_template("edit_profile.html", title="Edit Profile", form=form)
 
 
-@cat.route('/follow/<username>', methods=['POST'])
+@cat.route("/follow/<username>", methods=["POST"])
 @login_required
 def follow(username):
     form = EmptyForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=username).first()
         if user is None:
-            flash('User {} not found.'.format(username))
-            return redirect(url_for('hello'))
+            flash("User {} not found.".format(username))
+            return redirect(url_for("hello"))
         if user == current_user:
-            flash('You cannot follow yourself!')
-            return redirect(url_for('istemal_krta', username=username))
+            flash("You cannot follow yourself!")
+            return redirect(url_for("istemal_krta", username=username))
         current_user.follow(user)
         db.session.commit()
-        flash('You are following {}!'.format(username))
-        return redirect(url_for('istemal_krta', username=username))
+        flash("You are following {}!".format(username))
+        return redirect(url_for("istemal_krta", username=username))
     else:
-        return redirect(url_for('hello'))
+        return redirect(url_for("hello"))
 
 
-@cat.route('/unfollow/<username>', methods=['POST'])
+@cat.route("/unfollow/<username>", methods=["POST"])
 @login_required
 def unfollow(username):
     form = EmptyForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=username).first()
         if user is None:
-            flash('User {} not found.'.format(username))
-            return redirect(url_for('hello'))
+            flash("User {} not found.".format(username))
+            return redirect(url_for("hello"))
         if user == current_user:
-            flash('You cannot unfollow yourself!')
-            return redirect(url_for('istemal_krta', username=username))
+            flash("You cannot unfollow yourself!")
+            return redirect(url_for("istemal_krta", username=username))
         current_user.unfollow(user)
         db.session.commit()
-        flash('You are not following {}.'.format(username))
-        return redirect(url_for('istemal_krta', username=username))
+        flash("You are not following {}.".format(username))
+        return redirect(url_for("istemal_krta", username=username))
     else:
-        return redirect(url_for('hello'))
+        return redirect(url_for("hello"))
 
 
-@cat.route('/explore')
+@cat.route("/explore")
 @login_required
 def explore():
-    page = request.args.get('page', 1, type=int)
-    posts = Post.query.order_by(Post.timestamp.desc()).paginate(page, cat.config['POST_PER_PAGE'], False)
-    next_url = url_for('explore', page=posts.next_num) \
-        if posts.has_next else None
-    prev_url = url_for('explore', page=posts.prev_num) \
-        if posts.has_prev else None
-    return render_template("index.html", title='Explore', post1=posts.items,
-                           next_url=next_url, prev_url=prev_url)
+    page = request.args.get("page", 1, type=int)
+    posts = Post.query.order_by(Post.timestamp.desc()).paginate(
+        page, cat.config["POST_PER_PAGE"], False
+    )
+    next_url = url_for("explore", page=posts.next_num) if posts.has_next else None
+    prev_url = url_for("explore", page=posts.prev_num) if posts.has_prev else None
+    return render_template(
+        "index.html",
+        title="Explore",
+        post1=posts.items,
+        next_url=next_url,
+        prev_url=prev_url,
+    )
+
+
+@cat.route("/reset_password_request", methods=["GET", "POST"])
+def reset_password_request():
+    if current_user.is_authenticated:
+        return redirect(url_for("hello"))
+    form = ResetPasswordRequestForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user:
+            send_password_reset_email(user)
+        flash("Check your email for the instructions to reset your password")
+        return redirect(url_for("login"))
+    return render_template(
+        "reset_password_request.html", title="Reset Password", form=form
+    )
+
+
+@cat.route("/reset_password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+    user = User.verify_reset_password_token(token)
+    if not user:
+        return redirect(url_for("index"))
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        user.set_password(form.password.data)
+        db.session.commit()
+        flash("Your password has been reset.")
+        return redirect(url_for("login"))
+    return render_template("reset_password.html", form=form)
