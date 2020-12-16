@@ -1,4 +1,3 @@
-# microblog
-miguel_grinberg blog 
-important pointers : created "cat" as Flask( __name__) instance 
-instead of routes.py file , created views.py
+# Welcome to Microblog!
+
+This is an example application featured in my [Flask Mega-Tutorial](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world). See the tutorial for instructions on how to work with it.
